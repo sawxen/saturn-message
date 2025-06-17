@@ -69,7 +69,15 @@ const MessageInput: React.FC<{
     value: string;
     onChange: (value: string) => void;
     onSend: () => void;
-}> = ({ value, onChange, onSend }) => {
+    isSending: boolean;
+}> = ({ value, onChange, onSend, isSending }) => {
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter' && !e.shiftKey && !isSending) {
+            e.preventDefault();
+            onSend();
+        }
+    };
+
     return (
         <div className="flex items-center mt-auto p-3 bg-[#1e2a38] border-t border-gray-700">
             <button className="text-gray-400 hover:text-white p-2 mx-1 rounded-full hover:bg-white/10">
@@ -91,17 +99,25 @@ const MessageInput: React.FC<{
                 onChange={(e) => onChange(e.target.value)}
                 className="flex-1 px-4 py-2 mx-2 bg-[#242f3d] text-white rounded-full focus:outline-none focus:ring-1 focus:ring-blue-500 border border-[#2b5278] placeholder-gray-500"
                 placeholder="Write a message..."
-                onKeyDown={(e) => e.key === 'Enter' && onSend()}
+                onKeyDown={handleKeyDown}
+                disabled={isSending}
             />
             <button
                 onClick={onSend}
-                disabled={!value.trim()}
+                disabled={!value.trim() || isSending}
                 className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white p-2 rounded-full"
             >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <line x1="22" y1="2" x2="11" y2="13" />
-                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
-                </svg>
+                {isSending ? (
+                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                ) : (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <line x1="22" y1="2" x2="11" y2="13" />
+                        <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                    </svg>
+                )}
             </button>
         </div>
     );
@@ -111,6 +127,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ selectedChatId, chatName = 'Chat', 
     const [message, setMessage] = React.useState('');
     const [messages, setMessages] = React.useState<Message[]>([]);
     const [currentUserId, setCurrentUserId] = React.useState<string | null>(null);
+    const [isSending, setIsSending] = React.useState(false);
 
     // Получаем ID текущего пользователя
     React.useEffect(() => {
@@ -125,7 +142,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ selectedChatId, chatName = 'Chat', 
         fetchCurrentUser();
     }, []);
 
-    // Загружаем сообщения при изменении выбранного чата или ID пользовател
+    // Загружаем сообщения
     React.useEffect(() => {
         if (selectedChatId && currentUserId) {
             (async () => {
@@ -150,22 +167,39 @@ const ChatArea: React.FC<ChatAreaProps> = ({ selectedChatId, chatName = 'Chat', 
     }, [selectedChatId, currentUserId]);
 
     const handleSend = async () => {
-        if (message.trim() && selectedChatId) {
-            try {
-                await sendMessage(selectedChatId, message);
-                const newMessage: Message = {
-                    id: `temp-${Date.now()}`,
-                    text: message,
-                    sender: 'me',
-                    timestamp: new Date(),
-                    status: 'sent',
-                };
-                setMessages(prev => [...prev, newMessage]);
-                onSendMessage(message);
-                setMessage('');
-            } catch (error) {
-                console.error('Error sending message:', error);
-            }
+        if (isSending || !message.trim() || !selectedChatId) return;
+
+        setIsSending(true);
+        const messageText = message.trim();
+
+        try {
+            // Оптимистичное обновление UI
+            const tempMessage: Message = {
+                id: `temp-${Date.now()}`,
+                text: messageText,
+                sender: 'me',
+                timestamp: new Date(),
+                status: 'sent',
+            };
+
+            setMessages(prev => [...prev, tempMessage]);
+            setMessage('');
+
+            // Отправка на сервер
+            await sendMessage(selectedChatId, messageText);
+            onSendMessage(messageText);
+
+            // Обновление статуса сообщения
+            setMessages(prev => prev.map(msg =>
+                msg.id === tempMessage.id ? {...msg, status: 'delivered'} : msg
+            ));
+        } catch (error) {
+            console.error('Error sending message:', error);
+            // Откатываем изменения при ошибке
+            setMessages(prev => prev.filter(msg => msg.id !== `temp-${Date.now()}`));
+            setMessage(messageText);
+        } finally {
+            setIsSending(false);
         }
     };
 
@@ -199,7 +233,12 @@ const ChatArea: React.FC<ChatAreaProps> = ({ selectedChatId, chatName = 'Chat', 
                     </div>
                 )}
             </div>
-            <MessageInput value={message} onChange={setMessage} onSend={handleSend} />
+            <MessageInput
+                value={message}
+                onChange={setMessage}
+                onSend={handleSend}
+                isSending={isSending}
+            />
         </div>
     );
 };
