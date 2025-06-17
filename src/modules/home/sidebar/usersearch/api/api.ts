@@ -105,7 +105,7 @@ export const getMessages = async (chatId: string, page = 1, limit = 50): Promise
     }
 };
 
-// Отправка сообщения
+// Отправка сообщени
 export const sendMessage = async (chatId: string, text: string): Promise<void> => {
     try {
         console.log(`Sending message to: ${axiosInstance.defaults.baseURL}/groups/${chatId}/messages`);

@@ -125,7 +125,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ selectedChatId, chatName = 'Chat', 
         fetchCurrentUser();
     }, []);
 
-    // Загружаем сообщения при изменении выбранного чата или ID пользователя
+    // Загружаем сообщения при изменении выбранного чата или ID пользовател
     React.useEffect(() => {
         if (selectedChatId && currentUserId) {
             (async () => {
