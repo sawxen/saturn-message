@@ -57,6 +57,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, profile, s
             console.error('Profile load error:', error);
             if (axios.isAxiosError(error)) {
                 const axiosError = error as AxiosError;
+                // @ts-ignore
                 setError(axiosError.response?.data?.message || 'Failed to load profile');
                 if (axiosError.response?.status === 401) {
                     handleLogout();
@@ -100,6 +101,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, profile, s
             console.error('Profile update failed:', error);
             if (axios.isAxiosError(error)) {
                 const axiosError = error as AxiosError;
+                // @ts-ignore
                 setError(axiosError.response?.data?.message || 'Failed to update profile');
             } else {
                 setError((error as Error).message || 'Failed to update profile');

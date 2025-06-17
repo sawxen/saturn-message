@@ -115,23 +115,22 @@ const ChatArea: React.FC<ChatAreaProps> = ({ selectedChatId, chatName = 'Chat', 
             (async () => {
                 try {
                     const fetchedMessages = await getMessages(selectedChatId);
-                    // Удаляем дубликаты и сортируем по времени
                     const uniqueMessages = Array.from(
                         new Map(fetchedMessages.map(msg => [msg, msg])).values()
-                    ).map((msg: string, index) => ({
+                    ).map((msg: string, index): Message => ({
                         id: `${selectedChatId}-msg-${index}`,
                         text: msg,
                         sender: index % 2 === 0 ? 'me' : 'them',
                         timestamp: new Date(),
                         status: index % 3 === 0 ? 'read' : 'delivered',
                     })).sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
-                    setMessages(uniqueMessages); // Прямое присваивание массива
+                    setMessages(uniqueMessages); // Используем функцию обновления состояния
                 } catch (error) {
                     console.error('Failed to load messages:', error);
                 }
             })();
         } else {
-            setMessages([]); // Прямое присваивание пустого массива
+            setMessages([]); // Используем функцию обновления состояния
         }
     }, [selectedChatId]);
 
@@ -150,7 +149,6 @@ const ChatArea: React.FC<ChatAreaProps> = ({ selectedChatId, chatName = 'Chat', 
                 onSendMessage(message);
                 setMessage('');
 
-                // Изменяем ответ на более естественный (убираем "Reply to:")
                 setTimeout(() => {
                     const replyMessage: Message = {
                         id: `${selectedChatId}-msg-${Date.now()}-reply`,

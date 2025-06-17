@@ -6,7 +6,7 @@ import { getChats, searchUsers, createChat } from './usersearch/api/api';
 import { useDebounce } from 'use-debounce';
 import { useNotifications } from './notifications/notifyhook';
 import NotificationList from './notifications/NotificationsList.tsx';
-import { joinGroup } from './notifications/api'; // Исправленный путь
+import { joinGroup } from './notifications/api';
 
 export interface Chat {
     id: string;
@@ -81,10 +81,16 @@ const Sidebar: React.FC<{
             const fetchedChats = await getChats();
             setChats(fetchedChats);
             fetchNotifications();
-            setIsNotificationVisible(false); // Закрываем окно после присоединения
+            setIsNotificationVisible(false);
         } catch (error) {
             console.error('Failed to join group:', error);
         }
+    };
+
+    // Добавляем кнопку для markAllAsRead
+    const handleMarkAllAsRead = () => {
+        markAllAsRead();
+        fetchNotifications(); // Обновляем уведомления после отметки
     };
 
     return (
@@ -92,13 +98,22 @@ const Sidebar: React.FC<{
             <div className="bg-[#2b5278] p-4 mb-4 h-15 flex justify-between items-center">
                 <h1 className="text-white text-xl font-bold">Saturn</h1>
                 {unreadCount > 0 && (
-                    <button
-                        onClick={() => setIsNotificationVisible(!isNotificationVisible)}
-                        className="bg-red-500 text-white text-xs px-2 py-1 rounded-full"
-                        title="Toggle notifications"
-                    >
-                        {unreadCount}
-                    </button>
+                    <div className="flex space-x-2">
+                        <button
+                            onClick={handleMarkAllAsRead}
+                            className="bg-gray-600 text-white text-xs px-2 py-1 rounded-full hover:bg-gray-500"
+                            title="Mark all as read"
+                        >
+                            Mark All
+                        </button>
+                        <button
+                            onClick={() => setIsNotificationVisible(!isNotificationVisible)}
+                            className="bg-red-500 text-white text-xs px-2 py-1 rounded-full"
+                            title="Toggle notifications"
+                        >
+                            {unreadCount}
+                        </button>
+                    </div>
                 )}
             </div>
             <UserSearch searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
