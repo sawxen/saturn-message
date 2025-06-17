@@ -110,7 +110,7 @@ const MessageInput: React.FC<{
     );
 };
 
-const ChatArea: React.FC<ChatAreaProps> = ({ selectedChatId, chatName = 'Chat', onSendMessage }) => {
+const ChatArea: React.FC<ChatAreaProps> = ({ selectedChatId, chatName = 'Chat'}) => {
     const [message, setMessage] = React.useState('');
     const [messages, setMessages] = React.useState<Message[]>([]);
     const [currentUserId, setCurrentUserId] = React.useState<string | null>(null);
@@ -163,7 +163,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ selectedChatId, chatName = 'Chat', 
         const tempId = `temp-${Date.now()}`;
 
         try {
-            // Optimistic UI update
+            // Оптимистичное обновление UI
             const tempMessage: Message = {
                 id: tempId,
                 text: messageText,
@@ -175,28 +175,22 @@ const ChatArea: React.FC<ChatAreaProps> = ({ selectedChatId, chatName = 'Chat', 
             setMessages(prev => [...prev, tempMessage]);
             setMessage('');
 
-            // Call optional callback if provided
-            if (onSendMessage) {
-                await onSendMessage(messageText);
-            }
-
-            // Send to server
+            // Отправляем сообщение только один раз
             await sendMessage(selectedChatId, messageText);
 
-            // Update message status
+            // Обновление статуса сообщения
             setMessages(prev => prev.map(msg =>
                 msg.id === tempId ? {...msg, status: 'delivered'} : msg
             ));
         } catch (error) {
             console.error('Error sending message:', error);
-            // Rollback on error
             setMessages(prev => prev.filter(msg => msg.id !== tempId));
             setMessage(messageText);
         } finally {
             setIsSending(false);
             sendLockRef.current = false;
         }
-    }, [message, selectedChatId, onSendMessage]);
+    }, [message, selectedChatId]);
 
     if (!selectedChatId) {
         return (
