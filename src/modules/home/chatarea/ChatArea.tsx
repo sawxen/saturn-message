@@ -120,17 +120,17 @@ const ChatArea: React.FC<ChatAreaProps> = ({ selectedChatId, chatName = 'Chat', 
                     ).map((msg: string, index): Message => ({
                         id: `${selectedChatId}-msg-${index}`,
                         text: msg,
-                        sender: index % 2 === 0 ? 'me' : 'them',
+                        sender: 'me', // Все сообщения теперь только от пользователя
                         timestamp: new Date(),
-                        status: index % 3 === 0 ? 'read' : 'delivered',
+                        status: 'delivered',
                     })).sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
-                    setMessages(uniqueMessages); // Используем функцию обновления состояния
+                    setMessages(uniqueMessages);
                 } catch (error) {
                     console.error('Failed to load messages:', error);
                 }
             })();
         } else {
-            setMessages([]); // Используем функцию обновления состояния
+            setMessages([]);
         }
     }, [selectedChatId]);
 
@@ -145,20 +145,9 @@ const ChatArea: React.FC<ChatAreaProps> = ({ selectedChatId, chatName = 'Chat', 
                     timestamp: new Date(),
                     status: 'sent',
                 };
-                setMessages(prevMessages => [...prevMessages, newMessage].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime()));
+                setMessages(prevMessages => [...prevMessages, newMessage]);
                 onSendMessage(message);
                 setMessage('');
-
-                setTimeout(() => {
-                    const replyMessage: Message = {
-                        id: `${selectedChatId}-msg-${Date.now()}-reply`,
-                        text: `Привет! Я ответил на твое сообщение.`,
-                        sender: 'them',
-                        timestamp: new Date(),
-                        status: undefined,
-                    };
-                    setMessages(prevMessages => [...prevMessages, replyMessage].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime()));
-                }, 1000 + Math.random() * 2000);
             } catch (error) {
                 console.error('Error sending message:', error);
             }
