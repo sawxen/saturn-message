@@ -13,6 +13,7 @@ interface Message {
 interface ChatAreaProps {
     selectedChatId: string | null;
     chatName?: string;
+    onSendMessage?: (message: string) => Promise<void>;
 }
 
 const ChatHeader: React.FC<{ chatName: string }> = ({ chatName }) => {
@@ -109,14 +110,14 @@ const MessageInput: React.FC<{
     );
 };
 
-const ChatArea: React.FC<ChatAreaProps> = ({ selectedChatId, chatName = 'Chat' }) => {
+const ChatArea: React.FC<ChatAreaProps> = ({ selectedChatId, chatName = 'Chat', onSendMessage }) => {
     const [message, setMessage] = React.useState('');
     const [messages, setMessages] = React.useState<Message[]>([]);
     const [currentUserId, setCurrentUserId] = React.useState<string | null>(null);
     const [isSending, setIsSending] = React.useState(false);
     const sendLockRef = React.useRef(false);
 
-    // Получаем ID текущего пользователя
+    // Get current user ID
     React.useEffect(() => {
         const fetchCurrentUser = async () => {
             try {
@@ -129,7 +130,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ selectedChatId, chatName = 'Chat' }
         fetchCurrentUser();
     }, []);
 
-    // Загружаем сообщения
+    // Load messages
     React.useEffect(() => {
         if (selectedChatId && currentUserId) {
             (async () => {
@@ -162,7 +163,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ selectedChatId, chatName = 'Chat' }
         const tempId = `temp-${Date.now()}`;
 
         try {
-            // Оптимистичное обновление UI
+            // Optimistic UI update
             const tempMessage: Message = {
                 id: tempId,
                 text: messageText,
@@ -174,23 +175,28 @@ const ChatArea: React.FC<ChatAreaProps> = ({ selectedChatId, chatName = 'Chat' }
             setMessages(prev => [...prev, tempMessage]);
             setMessage('');
 
-            // Отправка на сервер
+            // Call optional callback if provided
+            if (onSendMessage) {
+                await onSendMessage(messageText);
+            }
+
+            // Send to server
             await sendMessage(selectedChatId, messageText);
 
-            // Обновление статуса сообщения
+            // Update message status
             setMessages(prev => prev.map(msg =>
                 msg.id === tempId ? {...msg, status: 'delivered'} : msg
             ));
         } catch (error) {
             console.error('Error sending message:', error);
-            // Откатываем изменения при ошибке
+            // Rollback on error
             setMessages(prev => prev.filter(msg => msg.id !== tempId));
             setMessage(messageText);
         } finally {
             setIsSending(false);
             sendLockRef.current = false;
         }
-    }, [message, selectedChatId]);
+    }, [message, selectedChatId, onSendMessage]);
 
     if (!selectedChatId) {
         return (
