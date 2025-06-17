@@ -13,7 +13,6 @@ interface Message {
 interface ChatAreaProps {
     selectedChatId: string | null;
     chatName?: string;
-    onSendMessage: (message: string) => void;
 }
 
 const ChatHeader: React.FC<{ chatName: string }> = ({ chatName }) => {
@@ -80,19 +79,6 @@ const MessageInput: React.FC<{
 
     return (
         <div className="flex items-center mt-auto p-3 bg-[#1e2a38] border-t border-gray-700">
-            <button className="text-gray-400 hover:text-white p-2 mx-1 rounded-full hover:bg-white/10">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-                </svg>
-            </button>
-            <button className="text-gray-400 hover:text-white p-2 mx-1 rounded-full hover:bg-white/10">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <circle cx="12" cy="12" r="10" />
-                    <path d="M8 14s1.5 2 4 2 4-2 4-2" />
-                    <line x1="9" y1="9" x2="9.01" y2="9" />
-                    <line x1="15" y1="9" x2="15.01" y2="9" />
-                </svg>
-            </button>
             <input
                 type="text"
                 value={value}
@@ -123,11 +109,12 @@ const MessageInput: React.FC<{
     );
 };
 
-const ChatArea: React.FC<ChatAreaProps> = ({ selectedChatId, chatName = 'Chat', onSendMessage }) => {
+const ChatArea: React.FC<ChatAreaProps> = ({ selectedChatId, chatName = 'Chat' }) => {
     const [message, setMessage] = React.useState('');
     const [messages, setMessages] = React.useState<Message[]>([]);
     const [currentUserId, setCurrentUserId] = React.useState<string | null>(null);
     const [isSending, setIsSending] = React.useState(false);
+    const sendLockRef = React.useRef(false);
 
     // Получаем ID текущего пользователя
     React.useEffect(() => {
@@ -166,16 +153,18 @@ const ChatArea: React.FC<ChatAreaProps> = ({ selectedChatId, chatName = 'Chat', 
         }
     }, [selectedChatId, currentUserId]);
 
-    const handleSend = async () => {
-        if (isSending || !message.trim() || !selectedChatId) return;
+    const handleSend = React.useCallback(async () => {
+        if (sendLockRef.current || !message.trim() || !selectedChatId) return;
 
+        sendLockRef.current = true;
         setIsSending(true);
         const messageText = message.trim();
+        const tempId = `temp-${Date.now()}`;
 
         try {
             // Оптимистичное обновление UI
             const tempMessage: Message = {
-                id: `temp-${Date.now()}`,
+                id: tempId,
                 text: messageText,
                 sender: 'me',
                 timestamp: new Date(),
@@ -187,21 +176,21 @@ const ChatArea: React.FC<ChatAreaProps> = ({ selectedChatId, chatName = 'Chat', 
 
             // Отправка на сервер
             await sendMessage(selectedChatId, messageText);
-            onSendMessage(messageText);
 
             // Обновление статуса сообщения
             setMessages(prev => prev.map(msg =>
-                msg.id === tempMessage.id ? {...msg, status: 'delivered'} : msg
+                msg.id === tempId ? {...msg, status: 'delivered'} : msg
             ));
         } catch (error) {
             console.error('Error sending message:', error);
             // Откатываем изменения при ошибке
-            setMessages(prev => prev.filter(msg => msg.id !== `temp-${Date.now()}`));
+            setMessages(prev => prev.filter(msg => msg.id !== tempId));
             setMessage(messageText);
         } finally {
             setIsSending(false);
+            sendLockRef.current = false;
         }
-    };
+    }, [message, selectedChatId]);
 
     if (!selectedChatId) {
         return (
