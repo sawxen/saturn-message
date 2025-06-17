@@ -91,13 +91,13 @@ export const searchUsers = async (query: string): Promise<User[]> => {
 };
 
 // Получение сообщений
-export const getMessages = async (chatId: string, page = 1, limit = 50): Promise<string[]> => {
+export const getMessages = async (chatId: string, page = 1, limit = 50): Promise<any[]> => {
     try {
         const params = { page, limit };
         console.log(`Fetching messages from: ${axiosInstance.defaults.baseURL}/groups/${chatId}/messages`, params);
         const { data } = await axiosInstance.get(`/groups/${chatId}/messages`, { params });
         console.log('Messages response:', data);
-        return data.messages.map((msg: any) => msg.payload?.payload || 'No message content');
+        return data.messages || [];
     } catch (error: unknown) {
         const axiosError = error as AxiosError<{ message: string }>;
         console.error('Failed to fetch messages:', axiosError.response?.data || axiosError.message);

@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { getMessages, sendMessage } from '../sidebar/usersearch/api/api';
+import axiosInstance from '../sidebar/usersearch/api/axiosInstance';
 
 interface Message {
     id: string;
@@ -109,22 +110,36 @@ const MessageInput: React.FC<{
 const ChatArea: React.FC<ChatAreaProps> = ({ selectedChatId, chatName = 'Chat', onSendMessage }) => {
     const [message, setMessage] = React.useState('');
     const [messages, setMessages] = React.useState<Message[]>([]);
+    const [currentUserId, setCurrentUserId] = React.useState<string | null>(null);
 
+    // Получаем ID текущего пользователя
     React.useEffect(() => {
-        if (selectedChatId) {
+        const fetchCurrentUser = async () => {
+            try {
+                const response = await axiosInstance.get('/users/me');
+                setCurrentUserId(response.data._id);
+            } catch (error) {
+                console.error('Failed to fetch current user:', error);
+            }
+        };
+        fetchCurrentUser();
+    }, []);
+
+    // Загружаем сообщения при изменении выбранного чата или ID пользователя
+    React.useEffect(() => {
+        if (selectedChatId && currentUserId) {
             (async () => {
                 try {
                     const fetchedMessages = await getMessages(selectedChatId);
-                    const uniqueMessages = Array.from(
-                        new Map(fetchedMessages.map(msg => [msg, msg])).values()
-                    ).map((msg: string, index): Message => ({
-                        id: `${selectedChatId}-msg-${index}`,
-                        text: msg,
-                        sender: 'me', // Все сообщения теперь только от пользователя
-                        timestamp: new Date(),
-                        status: 'delivered',
+                    const mappedMessages = fetchedMessages.map((msg: any): Message => ({
+                        id: msg._id,
+                        text: msg.payload?.payload || 'No message content',
+                        sender: msg.senderId === currentUserId ? 'me' : 'them',
+                        timestamp: new Date(msg.createdAt),
+                        status: msg.senderId === currentUserId ? 'delivered' : undefined,
                     })).sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
-                    setMessages(uniqueMessages);
+
+                    setMessages(mappedMessages);
                 } catch (error) {
                     console.error('Failed to load messages:', error);
                 }
@@ -132,20 +147,20 @@ const ChatArea: React.FC<ChatAreaProps> = ({ selectedChatId, chatName = 'Chat', 
         } else {
             setMessages([]);
         }
-    }, [selectedChatId]);
+    }, [selectedChatId, currentUserId]);
 
     const handleSend = async () => {
         if (message.trim() && selectedChatId) {
             try {
                 await sendMessage(selectedChatId, message);
                 const newMessage: Message = {
-                    id: `${selectedChatId}-msg-${Date.now()}`,
+                    id: `temp-${Date.now()}`,
                     text: message,
                     sender: 'me',
                     timestamp: new Date(),
                     status: 'sent',
                 };
-                setMessages(prevMessages => [...prevMessages, newMessage]);
+                setMessages(prev => [...prev, newMessage]);
                 onSendMessage(message);
                 setMessage('');
             } catch (error) {
