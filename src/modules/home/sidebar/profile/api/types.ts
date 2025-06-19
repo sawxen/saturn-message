@@ -2,9 +2,11 @@ export interface UserProfile {
     id: string;
     name: string;
     username: string;
+    displayName: string;
+    email: string;
+    avatar: string;
     status: string;
     bio: string;
-    avatar: string;
     profileLink: string;
     birthDate?: string;
     createdAt: string;

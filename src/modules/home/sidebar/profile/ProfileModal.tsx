@@ -1,6 +1,6 @@
 import * as React from 'react';
-import { getProfile, updateProfile } from '../api/api';
-import type { UserProfile, EditUserDto } from '../api/types';
+import { getProfile, updateProfile } from './api/api.ts';
+import type { UserProfile, EditUserDto } from './api/types.ts';
 import { useNavigate } from 'react-router-dom';
 import axios, { AxiosError } from 'axios';
 
@@ -54,16 +54,16 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, profile, s
             const data = await getProfile();
             setProfile(data);
         } catch (error: unknown) {
-            console.error('Profile load error:', error);
+            console.error('Ошибка загрузки профиля:', error);
             if (axios.isAxiosError(error)) {
                 const axiosError = error as AxiosError;
                 // @ts-ignore
-                setError(axiosError.response?.data?.message || 'Failed to load profile');
+                setError(axiosError.response?.data?.message || 'Не удалось загрузить профиль');
                 if (axiosError.response?.status === 401) {
                     handleLogout();
                 }
             } else {
-                setError((error as Error).message || 'Failed to load profile');
+                setError((error as Error).message || 'Не удалось загрузить профиль');
             }
         } finally {
             setIsLoading(false);
@@ -83,11 +83,11 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, profile, s
 
     const handleSave = async () => {
         if (formData.displayName.length < 3 || formData.username.length < 3) {
-            setError('Display Name and Username must be at least 3 characters');
+            setError('Имя и имя пользователя должны содержать минимум 3 символа');
             return;
         }
         if (formData.avatar && !isValidUrl(formData.avatar)) {
-            setError('Avatar must be a valid URL address');
+            setError('URL аватара должен быть действительным адресом');
             return;
         }
 
@@ -98,13 +98,13 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, profile, s
             setProfile(updatedProfile);
             setEditMode(false);
         } catch (error: unknown) {
-            console.error('Profile update failed:', error);
+            console.error('Ошибка обновления профиля:', error);
             if (axios.isAxiosError(error)) {
                 const axiosError = error as AxiosError;
                 // @ts-ignore
-                setError(axiosError.response?.data?.message || 'Failed to update profile');
+                setError(axiosError.response?.data?.message || 'Не удалось обновить профиль');
             } else {
-                setError((error as Error).message || 'Failed to update profile');
+                setError((error as Error).message || 'Не удалось обновить профиль');
             }
         } finally {
             setIsLoading(false);
@@ -119,16 +119,16 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, profile, s
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-700/50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}> {/* Добавлен inline-стиль для отладки */}
+            <div className="bg-gray-800 rounded-lg shadow-xl w-full max-w-md overflow-hidden border border-gray-700/50 transform transition-all duration-300 hover:shadow-2xl">
                 <div className="p-6">
                     <div className="flex justify-between items-start mb-6">
-                        <h2 className="text-2xl font-bold text-white">
-                            {editMode ? 'Edit Profile' : 'User Profile'}
+                        <h2 className="text-xl font-semibold text-white tracking-wide">
+                            {editMode ? 'Информация' : 'Мой профиль'}
                         </h2>
                         <button
                             onClick={onClose}
-                            className="text-gray-400 hover:text-white transition-colors"
+                            className="text-gray-400 hover:text-white transition-colors duration-200 disabled:opacity-50"
                             disabled={isLoading}
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -138,80 +138,80 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, profile, s
                     </div>
 
                     {error && (
-                        <div className="mb-4 p-3 bg-red-500/20 text-red-300 rounded-lg text-sm border border-red-500/30">
+                        <div className="mb-4 p-3 bg-red-600/20 text-red-200 rounded-lg text-sm border border-red-700/50 animate-pulse-once">
                             {error}
                         </div>
                     )}
 
                     {isLoading ? (
                         <div className="flex flex-col items-center justify-center py-8">
-                            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mb-4"></div>
-                            <p className="text-gray-400">
-                                {editMode ? 'Saving changes...' : 'Loading profile...'}
+                            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-400 mb-4"></div>
+                            <p className="text-gray-300">
+                                {editMode ? 'Сохранение изменений...' : 'Загрузка профиля...'}
                             </p>
                         </div>
                     ) : editMode ? (
-                        <div className="space-y-4">
-                            <div className="space-y-1">
-                                <label className="block text-sm font-medium text-gray-400 mb-1">
-                                    Display Name <span className="text-red-500">*</span>
+                        <div className="space-y-5">
+                            <div className="space-y-2">
+                                <label className="block text-sm font-medium text-gray-300">
+                                    Имя <span className="text-red-400">*</span>
                                 </label>
                                 <input
                                     type="text"
                                     name="displayName"
                                     value={formData.displayName}
                                     onChange={handleChange}
-                                    className="w-full px-4 py-2.5 bg-gray-800 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-700 transition-all"
-                                    placeholder="Enter your name"
+                                    className="w-full px-4 py-2.5 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-600 transition-all duration-200 placeholder-gray-500"
+                                    placeholder="Введите имя"
                                     minLength={3}
                                     required
                                 />
                             </div>
 
-                            <div className="space-y-1">
-                                <label className="block text-sm font-medium text-gray-400 mb-1">
-                                    Username <span className="text-red-500">*</span>
+                            <div className="space-y-2">
+                                <label className="block text-sm font-medium text-gray-300">
+                                    Имя пользователя <span className="text-red-400">*</span>
                                 </label>
                                 <input
                                     type="text"
                                     name="username"
                                     value={formData.username}
                                     onChange={handleChange}
-                                    className="w-full px-4 py-2.5 bg-gray-800 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-700 transition-all"
-                                    placeholder="Enter username"
+                                    className="w-full px-4 py-2.5 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-600 transition-all duration-200 placeholder-gray-500"
+                                    placeholder="Введите имя пользователя"
                                     minLength={3}
                                     required
                                 />
                             </div>
 
-                            <div className="space-y-1">
-                                <label className="block text-sm font-medium text-gray-400 mb-1">Bio</label>
+                            <div className="space-y-2">
+                                <label className="block text-sm font-medium text-gray-300">О себе</label>
                                 <textarea
                                     name="bio"
                                     value={formData.bio}
                                     onChange={handleChange}
-                                    className="w-full px-4 py-2.5 bg-gray-800 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-700 transition-all min-h-[100px]"
-                                    placeholder="Tell something about yourself"
-                                    rows={3}
+                                    className="w-full px-4 py-2.5 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-600 transition-all duration-200 min-h-[120px] placeholder-gray-500"
+                                    placeholder="Расскажите о себе"
+                                    rows={4}
                                 />
                             </div>
 
-                            <div className="space-y-1">
-                                <label className="block text-sm font-medium text-gray-400 mb-1">Avatar URL</label>
-                                <div className="flex items-center space-x-3">
+                            <div className="space-y-2">
+                                <label className="block text-sm font-medium text-gray-300">URL аватара</label>
+                                <div className="flex items-center space-x-4">
                                     <input
                                         type="text"
                                         name="avatar"
                                         value={formData.avatar}
                                         onChange={handleChange}
-                                        className="flex-1 px-4 py-2.5 bg-gray-800 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-700 transition-all"
-                                        placeholder="Paste image URL"
+                                        className="flex-1 px-4 py-2.5 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-600 transition-all duration-200 placeholder-gray-500"
+                                        placeholder="Вставьте URL изображения"
                                     />
                                     {formData.avatar && (
-                                        <div className="w-10 h-10 rounded-full overflow-hidden border border-gray-700">
+                                        <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-gray-600">
                                             <img
                                                 src={formData.avatar}
-                                                alt="Preview"
+                                                alt="Предпросмотр"
                                                 className="w-full h-full object-cover"
                                                 onError={(e) => {
                                                     (e.target as HTMLImageElement).src = 'https://via.placeholder.com/150';
@@ -222,14 +222,14 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, profile, s
                                 </div>
                             </div>
 
-                            <div className="space-y-1">
-                                <label className="block text-sm font-medium text-gray-400 mb-1">Birth Date</label>
+                            <div className="space-y-2">
+                                <label className="block text-sm font-medium text-gray-300">Дата рождения</label>
                                 <input
                                     type="date"
                                     name="birthDate"
                                     value={formData.birthDate}
                                     onChange={handleChange}
-                                    className="w-full px-4 py-2.5 bg-gray-800 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-700 transition-all"
+                                    className="w-full px-4 py-2.5 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-600 transition-all duration-200"
                                 />
                             </div>
 
@@ -237,14 +237,14 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, profile, s
                                 <button
                                     onClick={() => setEditMode(false)}
                                     disabled={isLoading}
-                                    className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-medium py-2.5 px-4 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="flex-1 bg-gray-600 hover:bg-gray-500 text-white font-medium py-2.5 px-4 rounded-xl transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed"
                                 >
-                                    Cancel
+                                    Отмена
                                 </button>
                                 <button
                                     onClick={handleSave}
                                     disabled={isLoading}
-                                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-xl transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center"
                                 >
                                     {isLoading ? (
                                         <>
@@ -252,94 +252,89 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, profile, s
                                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                             </svg>
-                                            Saving...
+                                            Сохранение...
                                         </>
-                                    ) : 'Save Changes'}
+                                    ) : 'Сохранить'}
                                 </button>
                             </div>
                         </div>
                     ) : (
                         <div className="space-y-6">
-                            <div className="flex flex-col items-center">
-                                <div className="relative mb-4 group">
-                                    {profile?.avatar ? (
-                                        <img
-                                            src={profile.avatar}
-                                            alt="Profile"
-                                            className="w-24 h-24 rounded-full object-cover border-4 border-gray-700 shadow-lg group-hover:border-blue-500 transition-colors"
-                                            onError={(e) => {
-                                                (e.target as HTMLImageElement).src = 'https://via.placeholder.com/150';
-                                            }}
-                                        />
-                                    ) : (
-                                        <div className="w-24 h-24 rounded-full bg-gray-700 flex items-center justify-center border-4 border-gray-700 group-hover:border-blue-500 transition-colors">
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                            </svg>
+                            <div className="flex flex-col">
+                                <div className={`flex items-center gap-5`}>
+                                    <div className="relative group">
+                                        {profile?.avatar ? (
+                                            <img
+                                                src={profile.avatar}
+                                                alt="Профиль"
+                                                className="w-20 h-20 rounded-full object-cover shadow-md transition-all duration-300"
+                                                onError={(e) => {
+                                                    (e.target as HTMLImageElement).src = 'https://via.placeholder.com/150';
+                                                }}
+                                            />
+                                        ) : (
+                                            <div className="w-28 h-28 rounded-full bg-gray-700 flex items-center justify-center border-4 border-gray-700 group-hover:border-blue-500 transition-all duration-300">
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-14 w-14 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                                </svg>
+                                            </div>
+                                        )}
+                                    </div>
+                                        <div className={`flex flex-col gap-1`}>
+                                            <h3 className="text-lg font-bold text-white">{profile?.name || 'Нет имени'}</h3>
+                                                <div className="flex items-center text-sm text-blue-400">
+                                                    В сети
+                                                </div>
                                         </div>
-                                    )}
-                                    <div className="absolute bottom-0 right-0 bg-blue-500 rounded-full p-1.5 shadow-md">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" viewBox="0 0 20 20" fill="currentColor">
-                                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                        </svg>
                                     </div>
                                 </div>
-                                <h3 className="text-xl font-bold text-white">{profile?.name || 'No name'}</h3>
-                                <p className="text-blue-400">@{profile?.username || 'username'}</p>
-                                {profile?.status === 'online' && (
-                                    <div className="mt-1 flex items-center text-sm text-green-400">
-                                        <span className="w-2 h-2 rounded-full bg-green-500 mr-1.5"></span>
-                                        Online
-                                    </div>
-                                )}
-                            </div>
-
                             <div className="space-y-4">
-                                <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700/50">
-                                    <h4 className="text-sm font-semibold text-gray-400 mb-2 uppercase tracking-wider">About</h4>
-                                    <p className="text-white">
+                                {/* О себе */}
+                                <div className="bg-gray-700/50 rounded-xl p-4 border border-gray-600/50">
+                                    <h4 className="text-sm font-semibold text-gray-300 mb-1 uppercase tracking-wide">О себе</h4>
+                                    <p className="text-gray-100">
                                         {profile?.bio ? (
                                             profile.bio
                                         ) : (
-                                            <span className="text-gray-500 italic">No bio yet</span>
+                                            <span className="text-gray-500 italic">Не указано</span>
                                         )}
                                     </p>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700/50">
-                                        <h4 className="text-sm font-semibold text-gray-400 mb-1 uppercase tracking-wider">Status</h4>
-                                        <p className="text-green-400 font-medium capitalize">
-                                            {profile?.status || 'offline'}
-                                        </p>
-                                    </div>
-                                    <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700/50">
-                                        <h4 className="text-sm font-semibold text-gray-400 mb-1 uppercase tracking-wider">Joined</h4>
-                                        <p className="text-white">
-                                            {profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString() : 'Unknown'}
-                                        </p>
-                                    </div>
+                                {/* Логин */}
+                                <div className="bg-gray-700/50 rounded-xl p-4 border border-gray-600/50">
+                                    <h4 className="text-sm font-semibold text-gray-300 mb-1 uppercase tracking-wide">Логин</h4>
+                                    <p className="text-blue-400 font-medium">
+                                        @{profile?.name || 'неизвестно'}
+                                    </p>
                                 </div>
+
+                                    <div className="bg-gray-700/50 rounded-xl p-4 border border-gray-600/50">
+                                        <h4 className="text-sm font-semibold text-gray-300 mb-1 uppercase tracking-wide">Дата рождения</h4>
+                                        <p className="text-gray-100">
+                                            {profile?.birthDate || 'Неизвестно'}
+                                        </p>
+                                    </div>
                             </div>
 
-                            <div className="flex space-x-3 pt-2">
+                            <div className="flex space-x-3 pt-4">
                                 <button
                                     onClick={() => setEditMode(true)}
-                                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-lg transition-all flex items-center justify-center"
+                                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 flex items-center justify-center shadow-md hover:shadow-lg"
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                     </svg>
-                                    Edit Profile
+                                    Изменить
                                 </button>
                                 <button
                                     onClick={handleLogout}
-                                    className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-medium py-2.5 px-4 rounded-lg transition-all flex items-center justify-center"
+                                    className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 flex items-center justify-center shadow-md hover:shadow-lg"
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                                     </svg>
-                                    Logout
+                                    Выход
                                 </button>
                             </div>
                         </div>

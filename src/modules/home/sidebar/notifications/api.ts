@@ -1,4 +1,4 @@
-import axiosInstance from '../usersearch/api/axiosInstance';
+import axiosInstance from '../../api/axiosInstance.ts';
 import type {AxiosError} from "axios";
 
 export interface Notification {

@@ -1,131 +1,198 @@
 import * as React from 'react';
 import UserSearch from './usersearch/UserSearch';
 import ChatList from './chatlist/ChatList';
-import Profile from './profile/Profile';
-import { getChats, searchUsers, createChat } from './usersearch/api/api';
+import { getChats, searchUsers, createChat } from '../api/api.ts';
 import { useDebounce } from 'use-debounce';
 import { useNotifications } from './notifications/notifyhook';
-import NotificationList from './notifications/NotificationsList.tsx';
+import NotificationList from './notifications/NotificationsList';
 import { joinGroup } from './notifications/api';
+import { FiMenu } from 'react-icons/fi';
+import LeftSidebar from './leftsidebar/LeftSidebar';
+import type {Chat, User} from '../api/types.ts';
 
-export interface Chat {
-    id: string;
-    name: string;
-    lastMessage: string;
-}
-
-export interface User {
-    id: string;
-    name: string;
-}
-
-const Sidebar: React.FC<{
+interface SidebarProps {
     onSelectChat: (id: string) => void;
     searchQuery: string;
     setSearchQuery: (query: string) => void;
-}> = ({ onSelectChat, searchQuery, setSearchQuery }) => {
+    onChatNameChange?: (chatName: string) => void;
+    onCreateGroupClick?: () => void;
+    onContactsClick?: () => void;
+    onSettingsClick?: () => void;
+    currentUser?: User;
+}
+
+export interface Message {
+    text: string;
+    sender: 'me' | 'them';
+    timestamp: string;
+    status?: 'sent' | 'delivered' | 'read';
+}
+
+const Sidebar: React.FC<SidebarProps> = ({
+                                             onSelectChat,
+                                             searchQuery,
+                                             setSearchQuery,
+                                             onChatNameChange,
+                                             onCreateGroupClick = () => {},
+                                             onContactsClick = () => {},
+                                             onSettingsClick = () => {},
+                                             currentUser,
+                                         }) => {
     const [chats, setChats] = React.useState<Chat[]>([]);
     const [allUsers, setAllUsers] = React.useState<User[]>([]);
     const [debouncedSearchQuery] = useDebounce(searchQuery, 300);
-    const { notifications, unreadCount, markAllAsRead, fetchNotifications } = useNotifications();
+    const [, setSelectedChatId] = React.useState<string | null>(null);
+    const { notifications, fetchNotifications } = useNotifications();
     const [isNotificationVisible, setIsNotificationVisible] = React.useState(false);
+    const [isLeftSidebarOpen, setIsLeftSidebarOpen] = React.useState(false);
+    const [sidebarWidth, setSidebarWidth] = React.useState<number>(320); // Начальная ширина
+    const minWidth = 200; // Минимальная ширина
+    const maxWidth = window.innerWidth * 0.7; // Максимальная ширина 70% экрана
+    const adaptiveWidth = 80; // Фиксированная ширина адаптивной версии
+    const sidebarRef = React.useRef<HTMLDivElement>(null);
 
     React.useEffect(() => {
-        (async () => {
+        const fetchChats = async () => {
             try {
                 const fetchedChats = await getChats();
                 setChats(fetchedChats);
             } catch (error) {
-                console.error('Failed to fetch chats:', error);
+                console.error('Ошибка загрузки чатов:', error);
             }
-        })();
+        };
+        fetchChats();
     }, []);
 
     React.useEffect(() => {
-        (async () => {
+        const fetchUsers = async () => {
             if (debouncedSearchQuery && debouncedSearchQuery.length >= 3) {
                 try {
                     const fetchedUsers = await searchUsers(debouncedSearchQuery);
                     setAllUsers(fetchedUsers);
                 } catch (error) {
-                    console.error('Failed to fetch users:', error);
+                    console.error('Ошибка поиска пользователей:', error);
                 }
             } else {
                 setAllUsers([]);
             }
-        })();
+        };
+        fetchUsers();
     }, [debouncedSearchQuery]);
 
     const handleSelectChat = async (id: string) => {
-        const user = allUsers.find(user => user.id === id);
-        if (!chats.some(chat => chat.id === id)) {
-            try {
+        try {
+            const user = allUsers.find((user) => user.id === id);
+            if (!chats.some((chat) => chat.id === id)) {
                 if (user) {
-                    const newChat = await createChat({ userId: user.id, username: user.name });
-                    setChats(prevChats => [...prevChats, newChat]);
+                    const newChat = await createChat({
+                        userId: user.id,
+                        username: user.name,
+                    });
+                    setChats((prevChats) => [...prevChats, newChat]);
+                    setSelectedChatId(newChat.id);
                     onSelectChat(newChat.id);
-                    fetchNotifications();
+                    if (onChatNameChange) onChatNameChange(newChat.name);
+                    await fetchNotifications();
                 }
-            } catch (error) {
-                console.error('Failed to create chat:', error);
+            } else {
+                setSelectedChatId(id);
+                onSelectChat(id);
+                const chatName = chats.find((chat) => chat.id === id)?.name || 'Чат';
+                if (onChatNameChange) onChatNameChange(chatName);
             }
-        } else {
-            onSelectChat(id);
+        } catch (error) {
+            console.error('Ошибка выбора чата:', error);
         }
     };
 
     const handleJoinGroup = async (groupId: string, notificationId: string) => {
         try {
             await joinGroup(groupId, notificationId);
-            console.log(`Joined group ${groupId}, refreshing chats...`);
             const fetchedChats = await getChats();
             setChats(fetchedChats);
-            fetchNotifications();
+            await fetchNotifications();
             setIsNotificationVisible(false);
         } catch (error) {
-            console.error('Failed to join group:', error);
+            console.error('Ошибка присоединения к группе:', error);
         }
     };
 
-    // Добавляем кнопку для markAllAsRead
-    const handleMarkAllAsRead = () => {
-        markAllAsRead();
-        fetchNotifications(); // Обновляем уведомления после отметки
+    const startResizing = (e: React.MouseEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        const startX = e.pageX;
+        const startWidth = sidebarWidth;
+
+        const onMouseMove = (e: MouseEvent) => {
+            const deltaX = e.pageX - startX;
+            let newWidth = startWidth + deltaX;
+
+            // Если ширина меньше minWidth, сразу переключаем в компактный режим
+            if (newWidth < minWidth) {
+                setSidebarWidth(adaptiveWidth); // Сворачиваем без ожидания onMouseUp
+                return; // Прекращаем дальнейшие изменения
+            }
+
+            // Иначе ограничиваем максимальной шириной
+            if (newWidth > maxWidth) {
+                newWidth = maxWidth;
+            }
+
+            setSidebarWidth(newWidth);
+        };
+
+        const onMouseUp = () => {
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+        };
+
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
     };
 
     return (
-        <div className="w-full bg-[#17212b] shadow-lg min-h-screen flex flex-col relative">
-            <div className="bg-[#2b5278] p-4 mb-4 h-15 flex justify-between items-center">
-                <h1 className="text-white text-xl font-bold">Saturn</h1>
-                {unreadCount > 0 && (
-                    <div className="flex space-x-2">
+        <div
+            ref={sidebarRef}
+            className={`flex flex-col h-screen bg-gray-800 border-r border-gray-900 relative`}
+            style={{ width: `${sidebarWidth}px` }}
+        >
+            <div className="p-3 flex items-center">
+                {sidebarWidth >= minWidth ? (
+                    <>
                         <button
-                            onClick={handleMarkAllAsRead}
-                            className="bg-gray-600 text-white text-xs px-2 py-1 rounded-full hover:bg-gray-500"
-                            title="Mark all as read"
+                            onClick={() => setIsLeftSidebarOpen(true)}
+                            className="p-2 text-gray-400 hover:text-white transition-colors duration-200 mr-2"
+                            title="Меню"
                         >
-                            Mark All
+                            <FiMenu className="text-2xl" />
                         </button>
-                        <button
-                            onClick={() => setIsNotificationVisible(!isNotificationVisible)}
-                            className="bg-red-500 text-white text-xs px-2 py-1 rounded-full"
-                            title="Toggle notifications"
-                        >
-                            {unreadCount}
-                        </button>
-                    </div>
+                        <div className="flex-1">
+                            <UserSearch
+                                searchQuery={searchQuery}
+                                setSearchQuery={setSearchQuery}
+                            />
+                        </div>
+                    </>
+                ) : (
+                    <button
+                        onClick={() => setIsLeftSidebarOpen(true)}
+                        className="p-2 text-gray-400 hover:text-white transition-colors duration-200 mx-auto"
+                        title="Меню"
+                    >
+                        <FiMenu className="text-lg" />
+                    </button>
                 )}
             </div>
-            <UserSearch searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
-            <ChatList
-                chats={chats}
-                allUsers={allUsers}
-                onSelectChat={handleSelectChat}
-                searchQuery={searchQuery}
-            />
-            <div className="mt-auto">
-                <Profile />
+
+            <div className="flex-1 overflow-y-auto">
+                <ChatList
+                    chats={chats}
+                    allUsers={allUsers}
+                    onSelectChat={handleSelectChat}
+                    searchQuery={searchQuery}
+                    isExpanded={sidebarWidth >= minWidth}
+                />
             </div>
+
             {isNotificationVisible && notifications.length > 0 && (
                 <NotificationList
                     notifications={notifications}
@@ -133,6 +200,23 @@ const Sidebar: React.FC<{
                     onClose={() => setIsNotificationVisible(false)}
                 />
             )}
+
+            {currentUser && (
+                <LeftSidebar
+                    currentUser={currentUser}
+                    isOpen={isLeftSidebarOpen}
+                    onClose={() => setIsLeftSidebarOpen(false)}
+                    onCreateGroupClick={onCreateGroupClick}
+                    onContactsClick={onContactsClick}
+                    onSettingsClick={onSettingsClick}
+                />
+            )}
+
+            <div
+                onMouseDown={startResizing}
+                className="absolute right-0 top-0 h-full w-1 bg-transparent cursor-col-resize"
+                style={{ touchAction: 'none' }}
+            />
         </div>
     );
 };
