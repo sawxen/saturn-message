@@ -8,7 +8,7 @@ import NotificationList from './notifications/NotificationsList';
 import { joinGroup } from './notifications/api';
 import { FiMenu } from 'react-icons/fi';
 import LeftSidebar from './leftsidebar/LeftSidebar';
-import type {Chat, User} from '../api/types.ts';
+import type { Chat, User } from '../api/types.ts';
 
 interface SidebarProps {
     onSelectChat: (id: string) => void;
@@ -22,10 +22,18 @@ interface SidebarProps {
 }
 
 export interface Message {
+    id: string;
     text: string;
     sender: 'me' | 'them';
-    timestamp: string;
+    timestamp: Date;
     status?: 'sent' | 'delivered' | 'read';
+    isEditable?: boolean;
+    file?: {
+        id: string;
+        name: string;
+        size: number;
+        type: string;
+    };
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -45,10 +53,10 @@ const Sidebar: React.FC<SidebarProps> = ({
     const { notifications, fetchNotifications } = useNotifications();
     const [isNotificationVisible, setIsNotificationVisible] = React.useState(false);
     const [isLeftSidebarOpen, setIsLeftSidebarOpen] = React.useState(false);
-    const [sidebarWidth, setSidebarWidth] = React.useState<number>(320); // Начальная ширина
-    const minWidth = 200; // Минимальная ширина
-    const maxWidth = window.innerWidth * 0.7; // Максимальная ширина 70% экрана
-    const adaptiveWidth = 80; // Фиксированная ширина адаптивной версии
+    const [sidebarWidth, setSidebarWidth] = React.useState<number>(320);
+    const minWidth = 200;
+    const maxWidth = window.innerWidth * 0.7;
+    const adaptiveWidth = 80;
     const sidebarRef = React.useRef<HTMLDivElement>(null);
 
     React.useEffect(() => {
@@ -81,25 +89,48 @@ const Sidebar: React.FC<SidebarProps> = ({
 
     const handleSelectChat = async (id: string) => {
         try {
+            const existingChat = chats.find((chat) => chat.id === id);
             const user = allUsers.find((user) => user.id === id);
-            if (!chats.some((chat) => chat.id === id)) {
-                if (user) {
-                    const newChat = await createChat({
-                        userId: user.id,
-                        username: user.name,
-                    });
-                    setChats((prevChats) => [...prevChats, newChat]);
-                    setSelectedChatId(newChat.id);
-                    onSelectChat(newChat.id);
-                    if (onChatNameChange) onChatNameChange(newChat.name);
-                    await fetchNotifications();
-                }
-            } else {
+
+            if (!existingChat && user) {
+                // Create a new chat with a user
+                const newChat = await createChat({
+                    userId: user.id,
+                    username: user.name,
+                });
+                setChats((prevChats) => {
+                    if (!prevChats.some((chat) => chat.id === newChat.id)) {
+                        return [...prevChats, newChat];
+                    }
+                    return prevChats;
+                });
+                setSelectedChatId(newChat.id);
+                onSelectChat(newChat.id);
+                if (onChatNameChange) onChatNameChange(newChat.name);
+            } else if (existingChat) {
+                // Select an existing chat
                 setSelectedChatId(id);
                 onSelectChat(id);
-                const chatName = chats.find((chat) => chat.id === id)?.name || 'Чат';
-                if (onChatNameChange) onChatNameChange(chatName);
+                if (onChatNameChange) onChatNameChange(existingChat.name);
+            } else {
+                // Possibly a group chat not yet in chats
+                const fetchedChats = await getChats();
+                const groupChat = fetchedChats.find((chat) => chat.id === id);
+                if (groupChat) {
+                    setChats((prevChats) => {
+                        if (!prevChats.some((chat) => chat.id === groupChat.id)) {
+                            return [...prevChats, groupChat];
+                        }
+                        return prevChats;
+                    });
+                    setSelectedChatId(id);
+                    onSelectChat(id);
+                    if (onChatNameChange) onChatNameChange(groupChat.name);
+                } else {
+                    console.warn(`Chat with ID ${id} not found`);
+                }
             }
+            await fetchNotifications();
         } catch (error) {
             console.error('Ошибка выбора чата:', error);
         }
@@ -109,9 +140,16 @@ const Sidebar: React.FC<SidebarProps> = ({
         try {
             await joinGroup(groupId, notificationId);
             const fetchedChats = await getChats();
-            setChats(fetchedChats);
+            setChats((prevChats) => {
+                // Update chats, avoiding duplicates
+                const updatedChats = fetchedChats.filter(
+                    (newChat) => !prevChats.some((chat) => chat.id === newChat.id)
+                );
+                return [...prevChats, ...updatedChats];
+            });
             await fetchNotifications();
             setIsNotificationVisible(false);
+            await handleSelectChat(groupId);
         } catch (error) {
             console.error('Ошибка присоединения к группе:', error);
         }
@@ -126,13 +164,11 @@ const Sidebar: React.FC<SidebarProps> = ({
             const deltaX = e.pageX - startX;
             let newWidth = startWidth + deltaX;
 
-            // Если ширина меньше minWidth, сразу переключаем в компактный режим
             if (newWidth < minWidth) {
-                setSidebarWidth(adaptiveWidth); // Сворачиваем без ожидания onMouseUp
-                return; // Прекращаем дальнейшие изменения
+                setSidebarWidth(adaptiveWidth);
+                return;
             }
 
-            // Иначе ограничиваем максимальной шириной
             if (newWidth > maxWidth) {
                 newWidth = maxWidth;
             }
@@ -178,7 +214,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                         className="p-2 text-gray-400 hover:text-white transition-colors duration-200 mx-auto"
                         title="Меню"
                     >
-                        <FiMenu className="text-lg" />
+                        <FiMenu className="text-2xl" />
                     </button>
                 )}
             </div>
@@ -193,13 +229,13 @@ const Sidebar: React.FC<SidebarProps> = ({
                 />
             </div>
 
-            {isNotificationVisible && notifications.length > 0 && (
-                <NotificationList
-                    notifications={notifications}
-                    onJoinGroup={handleJoinGroup}
-                    onClose={() => setIsNotificationVisible(false)}
-                />
-            )}
+            <NotificationList
+                isOpen={isNotificationVisible}
+                notifications={notifications}
+                onJoinGroup={handleJoinGroup}
+                onClose={() => setIsNotificationVisible(false)}
+                onSelectChat={handleSelectChat}
+            />
 
             {currentUser && (
                 <LeftSidebar

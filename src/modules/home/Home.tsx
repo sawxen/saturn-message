@@ -16,15 +16,13 @@ const Home: React.FC = () => {
             setLoading(true);
             setError(null);
             try {
-                console.log('Fetching user from:', axiosInstance.defaults.baseURL + '/users/me');
                 const response = await axiosInstance.get('/users/me');
-                console.log('User response:', response.data);
                 setCurrentUser({
                     id: response.data._id,
-                    name: response.data.public.displayName, // Извлекаем из public
-                    username: response.data.public.username, // Извлекаем из public
-                    avatar: response.data.public.avatar, // Извлекаем из public
-                    status: response.data.public.status, // Извлекаем из public
+                    name: response.data.public.displayName,
+                    username: response.data.public.username,
+                    avatar: response.data.public.avatar,
+                    status: response.data.public.status,
                 });
             } catch (error: any) {
                 console.error('Failed to fetch current user:', error.response?.status, error.response?.data || error.message);
@@ -36,16 +34,25 @@ const Home: React.FC = () => {
         fetchUser();
     }, []);
 
+    // Handle chat selection
+    const handleSelectChat = (chatId: string) => {
+        setSelectedChatId(chatId);
+        // Optionally fetch chat details to update chatName
+        // Example: Assume you have a getChatName API or chat list
+        // const chat = await getChat(chatId); // Replace with actual API call
+        // setChatName(chat.name || 'Chat');
+    };
+
     if (loading) return <div className="flex items-center justify-center h-screen text-white">Загрузка...</div>;
     if (error) return <div className="flex items-center justify-center h-screen text-red-500">{error}</div>;
 
     return (
         <div className="min-h-screen bg-[#0e1621] flex">
             <Sidebar
-                onSelectChat={setSelectedChatId}
+                onSelectChat={handleSelectChat} // Pass the handler function
                 searchQuery={searchQuery}
                 setSearchQuery={setSearchQuery}
-                onChatNameChange={setChatName}
+                onChatNameChange={setChatName} // This prop seems intended to update chatName
                 currentUser={currentUser}
             />
             <div className="flex-1">
